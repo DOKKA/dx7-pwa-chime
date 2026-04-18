@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="description" content="A meditative bell chime synthesizer inspired by the Yamaha DX-7">
+
+    <!-- iOS PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Bell Chime">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0a0806">
+    <meta name="format-detection" content="telephone=no">
+
+    <!-- iOS icons -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cdefs%3E%3CradialGradient id='g' cx='50%25' cy='40%25'%3E%3Cstop offset='0%25' stop-color='%23f4d9a8'/%3E%3Cstop offset='50%25' stop-color='%23c99a54'/%3E%3Cstop offset='100%25' stop-color='%238a5c2a'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect fill='%230a0806' width='512' height='512'/%3E%3Ccircle cx='256' cy='256' r='160' fill='url(%23g)'/%3E%3Ccircle cx='256' cy='256' r='160' fill='none' stroke='%23f4d9a8' stroke-width='3' opacity='0.4'/%3E%3C/svg%3E">
+
+    <link rel="manifest" href="manifest.json">
+    <title>Bell Chime</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..600,0..100;1,9..144,300..600,0..100&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+        }
+
+        :root {
+            --bg-deep: #0a0806;
+            --bg-panel: #14100c;
+            --bg-panel-alt: #1c1712;
+            --gold-light: #f4d9a8;
+            --gold: #c99a54;
+            --gold-deep: #8a5c2a;
+            --copper: #b8743a;
+            --text: #ebe3d4;
+            --text-dim: #8a8072;
+            --text-faint: #4a4439;
+            --stroke: rgba(201, 154, 84, 0.15);
+            --stroke-bright: rgba(201, 154, 84, 0.35);
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: fixed;
+            overscroll-behavior: none;
+            touch-action: manipulation;
+            background: var(--bg-deep);
+            color: var(--text);
+            font-family: 'JetBrains Mono', 'SF Mono', monospace;
+            -webkit-font-smoothing: antialiased;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 50% 20%, rgba(201, 154, 84, 0.08), transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(184, 116, 58, 0.06), transparent 50%),
+                radial-gradient(ellipse at 20% 70%, rgba(201, 154, 84, 0.04), transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.9' numOctaves='2' seed='5'/%3E%3CfeColorMatrix values='0 0 0 0 0.9 0 0 0 0 0.8 0 0 0 0 0.6 0 0 0 0.4 0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+            opacity: 0.06;
+            pointer-events: none;
+            z-index: 100;
+            mix-blend-mode: overlay;
+        }
+
+        #app {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
+            z-index: 1;
+        }
+
+        /* HEADER */
+        header {
+            padding: 18px 24px 10px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .header-mark {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 2px;
+        }
+
+        .header-title {
+            font-family: 'Fraunces', serif;
+            font-weight: 400;
+            font-style: italic;
+            font-size: 30px;
+            letter-spacing: 0.02em;
+            background: linear-gradient(180deg, var(--gold-light) 0%, var(--gold) 80%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            line-height: 1;
+        }
+
+        .header-sub {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            font-weight: 400;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: var(--text-faint);
+            margin-top: 6px;
+        }
+
+        /* BELL */
+        .stage {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            min-height: 220px;
+        }
+
+        .bell {
+            position: relative;
+            width: 240px;
+            height: 240px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .bell-core {
+            position: absolute;
+            inset: 30px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 30%, rgba(255, 240, 210, 0.95), rgba(201, 154, 84, 0.9) 30%, rgba(138, 92, 42, 0.85) 65%, rgba(58, 38, 18, 0.9) 100%);
+            box-shadow:
+                inset 0 -20px 40px rgba(0, 0, 0, 0.5),
+                inset 0 15px 30px rgba(255, 220, 170, 0.3),
+                0 0 60px rgba(201, 154, 84, 0.3),
+                0 0 120px rgba(201, 154, 84, 0.15);
+            transition: transform 0.15s ease, box-shadow 0.3s ease;
+            animation: breathe 4s ease-in-out infinite;
+        }
+
+        @keyframes breathe {
+            0%, 100% { box-shadow: inset 0 -20px 40px rgba(0, 0, 0, 0.5), inset 0 15px 30px rgba(255, 220, 170, 0.3), 0 0 60px rgba(201, 154, 84, 0.3), 0 0 120px rgba(201, 154, 84, 0.15); }
+            50% { box-shadow: inset 0 -20px 40px rgba(0, 0, 0, 0.5), inset 0 15px 30px rgba(255, 220, 170, 0.35), 0 0 80px rgba(201, 154, 84, 0.4), 0 0 160px rgba(201, 154, 84, 0.2); }
+        }
+
+        .bell.playing .bell-core {
+            animation: ring 0.6s ease-out;
+            box-shadow:
+                inset 0 -20px 40px rgba(0, 0, 0, 0.4),
+                inset 0 20px 40px rgba(255, 240, 200, 0.5),
+                0 0 120px rgba(244, 217, 168, 0.7),
+                0 0 200px rgba(201, 154, 84, 0.4);
+        }
+
+        @keyframes ring {
+            0% { transform: scale(1); }
+            20% { transform: scale(1.08); }
+            40% { transform: scale(0.98); }
+            60% { transform: scale(1.03); }
+            80% { transform: scale(0.99); }
+            100% { transform: scale(1); }
+        }
+
+        .bell:active .bell-core {
+            transform: scale(0.95);
+            transition: transform 0.08s ease;
+        }
+
+        .bell-highlight {
+            position: absolute;
+            top: 40px;
+            left: 70px;
+            width: 50px;
+            height: 30px;
+            background: radial-gradient(ellipse, rgba(255, 250, 230, 0.6), transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            filter: blur(3px);
+        }
+
+        .bell-ring-outer {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 1px solid rgba(201, 154, 84, 0.25);
+            pointer-events: none;
+        }
+
+        .bell-ring-mid {
+            position: absolute;
+            inset: 15px;
+            border-radius: 50%;
+            border: 1px solid rgba(201, 154, 84, 0.15);
+            pointer-events: none;
+        }
+
+        .ripple {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 2px solid var(--gold-light);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .bell.playing .ripple {
+            animation: ripple-expand 1.2s ease-out;
+        }
+
+        @keyframes ripple-expand {
+            0% { transform: scale(0.8); opacity: 0.8; border-width: 3px; }
+            100% { transform: scale(1.8); opacity: 0; border-width: 1px; }
+        }
+
+        .ripple-2 { animation-delay: 0.15s !important; }
+        .ripple-3 { animation-delay: 0.3s !important; }
+
+        .bell-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 9px;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            color: var(--text-faint);
+            font-weight: 500;
+            transition: opacity 0.4s ease;
+        }
+
+        /* KNOBS */
+        .controls {
+            padding: 0 20px 16px;
+            flex-shrink: 0;
+        }
+
+        .knob-row {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .knob-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .knob-container.primary .knob {
+            width: 96px;
+            height: 96px;
+        }
+
+        .knob-container.primary .knob-label { font-size: 11px; }
+
+        .knob {
+            width: 68px;
+            height: 68px;
+            position: relative;
+            cursor: grab;
+            touch-action: none;
+        }
+
+        .knob:active { cursor: grabbing; }
+
+        .knob-base {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 25%, #2a2017 0%, #1a1410 50%, #0f0b08 100%);
+            box-shadow:
+                inset 0 2px 4px rgba(255, 220, 170, 0.08),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.8),
+                0 2px 8px rgba(0, 0, 0, 0.4),
+                0 0 0 1px rgba(201, 154, 84, 0.2);
+        }
+
+        .knob-ring {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .knob-ring svg {
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+        }
+
+        .knob-track {
+            fill: none;
+            stroke: rgba(201, 154, 84, 0.15);
+            stroke-width: 2;
+        }
+
+        .knob-progress {
+            fill: none;
+            stroke: url(#knobGradient);
+            stroke-width: 2.5;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.08s ease;
+        }
+
+        .knob-indicator {
+            position: absolute;
+            top: 8%;
+            left: 50%;
+            width: 2px;
+            height: 22%;
+            background: linear-gradient(180deg, var(--gold-light), var(--gold));
+            transform-origin: 50% 190%;
+            transform: translateX(-50%) rotate(-135deg);
+            border-radius: 2px;
+            box-shadow: 0 0 6px rgba(244, 217, 168, 0.6);
+            transition: transform 0.05s linear;
+        }
+
+        .knob-container.primary .knob-indicator {
+            top: 6%;
+            height: 20%;
+        }
+
+        .knob-label {
+            margin-top: 10px;
+            font-size: 9px;
+            font-weight: 500;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            text-align: center;
+        }
+
+        .knob-value {
+            margin-top: 3px;
+            font-family: 'Fraunces', serif;
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--gold-light);
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 0.02em;
+            line-height: 1;
+        }
+
+        .knob-container.primary .knob-value { font-size: 18px; }
+
+        .knob-unit {
+            font-size: 9px;
+            color: var(--text-faint);
+            letter-spacing: 0.1em;
+            margin-left: 2px;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+        }
+
+        /* WAVEFORM */
+        .waveform {
+            height: 44px;
+            margin: 0 20px 12px;
+            position: relative;
+            border-top: 1px solid var(--stroke);
+            border-bottom: 1px solid var(--stroke);
+            background: linear-gradient(90deg, transparent, rgba(201, 154, 84, 0.03), transparent);
+        }
+
+        .waveform canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .waveform-label {
+            position: absolute;
+            top: 2px;
+            left: 4px;
+            font-size: 7px;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: var(--text-faint);
+            font-weight: 500;
+            pointer-events: none;
+        }
+
+        .waveform-rate {
+            position: absolute;
+            top: 2px;
+            right: 4px;
+            font-size: 7px;
+            letter-spacing: 0.15em;
+            color: var(--text-faint);
+            font-weight: 500;
+            pointer-events: none;
+        }
+
+        /* BOTTOM BAR */
+        .bottom-bar {
+            padding: 8px 24px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--stroke);
+            flex-shrink: 0;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 8px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--text-faint);
+            transition: all 0.3s ease;
+        }
+
+        .status-dot.active {
+            background: var(--gold-light);
+            box-shadow: 0 0 8px var(--gold-light);
+        }
+
+        .reset-btn {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 8px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .reset-btn:active { color: var(--gold-light); }
+
+        /* INSTALL HINT */
+        .install-hint {
+            position: fixed;
+            top: calc(env(safe-area-inset-top) + 12px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(20, 16, 12, 0.92);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--stroke-bright);
+            border-radius: 12px;
+            padding: 10px 16px;
+            font-size: 11px;
+            color: var(--gold-light);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: slideDown 0.5s ease-out;
+            max-width: 90%;
+        }
+
+        .install-hint.hidden { display: none; }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+
+        .install-hint-close {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 16px;
+            padding: 0 0 0 4px;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        /* RESPONSIVE */
+        @media (max-height: 700px) {
+            .bell { width: 180px; height: 180px; }
+            .bell-core { inset: 20px; }
+            .bell-highlight { top: 30px; left: 55px; width: 40px; height: 24px; }
+            .header-title { font-size: 24px; }
+            .stage { min-height: 180px; }
+        }
+
+        @media (max-height: 600px) {
+            .bell { width: 150px; height: 150px; }
+            .knob { width: 58px; height: 58px; }
+            .knob-container.primary .knob { width: 82px; height: 82px; }
+            header { padding: 10px 24px 6px; }
+        }
+
+        @media (max-width: 360px) {
+            .knob { width: 58px; height: 58px; }
+            .knob-container.primary .knob { width: 84px; height: 84px; }
+            .knob-row { gap: 6px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="install-hint hidden" id="installHint">
+            <span>Tap <strong>Share</strong> → <strong>Add to Home Screen</strong></span>
+            <button class="install-hint-close" onclick="dismissInstallHint()">×</button>
+        </div>
+
+        <header>
+            <div class="header-mark">N° 001</div>
+            <div class="header-title">Bell Chime</div>
+            <div class="header-sub">DX · Resonance Study</div>
+        </header>
+
+        <div class="stage">
+            <div class="bell" id="bell">
+                <div class="bell-ring-outer"></div>
+                <div class="bell-ring-mid"></div>
+                <div class="bell-core"></div>
+                <div class="bell-highlight"></div>
+                <div class="ripple"></div>
+                <div class="ripple ripple-2"></div>
+                <div class="ripple ripple-3"></div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <svg width="0" height="0" style="position:absolute">
+                <defs>
+                    <linearGradient id="knobGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#f4d9a8"/>
+                        <stop offset="100%" stop-color="#8a5c2a"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+
+            <div class="knob-row">
+                <div class="knob-container primary">
+                    <div class="knob" data-param="stretch" data-min="0.25" data-max="4.0" data-default="1.0">
+                        <div class="knob-base"></div>
+                        <div class="knob-ring">
+                            <svg viewBox="0 0 100 100">
+                                <circle class="knob-track" cx="50" cy="50" r="42" stroke-dasharray="198" stroke-dashoffset="66" transform="rotate(135 50 50)"/>
+                                <circle class="knob-progress" cx="50" cy="50" r="42" stroke-dasharray="198" stroke-dashoffset="132" transform="rotate(135 50 50)"/>
+                            </svg>
+                        </div>
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <div class="knob-label">Stretch</div>
+                    <div class="knob-value"><span id="stretchValue">1.00</span><span class="knob-unit">×</span></div>
+                </div>
+            </div>
+
+            <div class="knob-row">
+                <div class="knob-container">
+                    <div class="knob" data-param="pitch" data-min="-24" data-max="24" data-default="0">
+                        <div class="knob-base"></div>
+                        <div class="knob-ring">
+                            <svg viewBox="0 0 100 100">
+                                <circle class="knob-track" cx="50" cy="50" r="42" stroke-dasharray="198" stroke-dashoffset="66" transform="rotate(135 50 50)"/>
+                                <circle class="knob-progress" cx="50" cy="50" r="42" stroke-dasharray="198" stroke-dashoffset="132" transform="rotate(135 50 50)"/>
+                            </svg>
+                        </div>
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <div class="knob-label">Pitch</div>
+                    <div class="knob-value"><span id="pitchValue">0</span><span class="knob-unit">st</span></div>
+                </div>
+
+                <div class="knob-container">
+                    <div class="knob" data-param="brightness" data-min="0" data-max="100" data-default="60">
+                        <div class="knob-base"></div>
+                        <div class="knob-ring">
+                            <svg viewBox="0 0 100 100">
+                                <circle class="knob-track" cx="50" cy="50" r="42" stroke-dasharray="198" stroke-dashoffset="66" transform="rotate(135 50 50)"/>
+                                <circle class="knob-progress" cx="50" cy="50" r="42" stroke-dasharray="198" stroke-dashoffset="132" transform="rotate(135 50 50)"/>
+                            </svg>
+                        </div>
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <div class="knob-label">Tone</div>
+                    <div class="knob-value"><span id="brightnessValue">60</span></div>
+                </div>
+
+                <div class="knob-container">
+                    <div class="knob" data-param="reverb" data-min="0" data-max="100" data-default="40">
+                        <div class="knob-base"></div>
+                        <div class="knob-ring">
+                            <svg viewBox="0 0 100 100">
+                                <circle class="knob-track" cx="50" cy="50" r="42" stroke-dasharray="198" stroke-dashoffset="66" transform="rotate(135 50 50)"/>
+                                <circle class="knob-progress" cx="50" cy="50" r="42" stroke-dasharray="198" stroke-dashoffset="132" transform="rotate(135 50 50)"/>
+                            </svg>
+                        </div>
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <div class="knob-label">Space</div>
+                    <div class="knob-value"><span id="reverbValue">40</span></div>
+                </div>
+
+                <div class="knob-container">
+                    <div class="knob" data-param="volume" data-min="0" data-max="100" data-default="75">
+                        <div class="knob-base"></div>
+                        <div class="knob-ring">
+                            <svg viewBox="0 0 100 100">
+                                <circle class="knob-track" cx="50" cy="50" r="42" stroke-dasharray="198" stroke-dashoffset="66" transform="rotate(135 50 50)"/>
+                                <circle class="knob-progress" cx="50" cy="50" r="42" stroke-dasharray="198" stroke-dashoffset="132" transform="rotate(135 50 50)"/>
+                            </svg>
+                        </div>
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <div class="knob-label">Level</div>
+                    <div class="knob-value"><span id="volumeValue">75</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="waveform">
+            <div class="waveform-label">Signal</div>
+            <div class="waveform-rate" id="sampleRateLabel">— kHz</div>
+            <canvas id="waveformCanvas"></canvas>
+        </div>
+
+        <div class="bottom-bar">
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Tap bell to ring</span>
+            </div>
+            <button class="reset-btn" onclick="resetAllKnobs()">Reset</button>
+        </div>
+    </div>
+
+    <script>
+        // AUDIO ENGINE — FM synthesis inspired by Yamaha DX-7 TUBBELL
+        class BellchimeSynth {
+            constructor() {
+                this.ctx = null;
+                this.masterGain = null;
+                this.dryGain = null;
+                this.wetGain = null;
+                this.convolver = null;
+                this.analyser = null;
+                this.dataArray = null;
+                this.activeVoices = [];
+                this.params = {
+                    stretch: 1.0,
+                    pitch: 0,
+                    brightness: 60,
+                    reverb: 40,
+                    volume: 75
+                };
+            }
+
+            async init() {
+                if (this.ctx) return;
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)({
+                    latencyHint: 'interactive',
+                    sampleRate: 44100
+                });
+
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.gain.value = this.params.volume / 100;
+
+                this.dryGain = this.ctx.createGain();
+                this.wetGain = this.ctx.createGain();
+                this.convolver = this.ctx.createConvolver();
+                this.convolver.buffer = this.generateImpulseResponse(3.5, 2.5);
+
+                this.analyser = this.ctx.createAnalyser();
+                this.analyser.fftSize = 1024;
+                this.analyser.smoothingTimeConstant = 0.85;
+                this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+
+                this.dryGain.connect(this.masterGain);
+                this.convolver.connect(this.wetGain);
+                this.wetGain.connect(this.masterGain);
+                this.masterGain.connect(this.analyser);
+                this.analyser.connect(this.ctx.destination);
+
+                this.updateReverb();
+            }
+
+            generateImpulseResponse(duration, decay) {
+                const rate = this.ctx.sampleRate;
+                const length = Math.floor(rate * duration);
+                const impulse = this.ctx.createBuffer(2, length, rate);
+                for (let ch = 0; ch < 2; ch++) {
+                    const data = impulse.getChannelData(ch);
+                    for (let i = 0; i < length; i++) {
+                        const t = i / length;
+                        const envelope = Math.pow(1 - t, decay);
+                        const noise = (Math.random() * 2 - 1);
+                        const er = (t < 0.05 ? Math.sin(t * 400) * 0.3 : 0);
+                        data[i] = (noise + er) * envelope;
+                    }
+                }
+                return impulse;
+            }
+
+            async play() {
+                if (!this.ctx) await this.init();
+                if (this.ctx.state === 'suspended') await this.ctx.resume();
+
+                const now = this.ctx.currentTime;
+                const pitchMult = Math.pow(2, this.params.pitch / 12);
+                const stretch = this.params.stretch;
+                const baseDecay = 4.0 * stretch;
+                const brightnessNorm = this.params.brightness / 100;
+
+                // DX-7 TUBBELL-inspired voices: each pair is carrier + modulator (FM)
+                const voices = [
+                    { freq: 261.63, ratio: 3.5,  modIdx: 4.0, amp: 0.30, decay: 1.00, detune: 0 },
+                    { freq: 392.00, ratio: 7.0,  modIdx: 3.0, amp: 0.18, decay: 0.70, detune: 3 },
+                    { freq: 523.25, ratio: 14.0, modIdx: 2.5, amp: 0.14, decay: 0.50, detune: -2 },
+                    { freq: 659.26, ratio: 5.0,  modIdx: 2.0, amp: 0.10, decay: 0.38, detune: 5 },
+                    { freq: 783.99, ratio: 11.0, modIdx: 1.8, amp: 0.08, decay: 0.28, detune: -4 },
+                    { freq: 130.81, ratio: 1.0,  modIdx: 1.5, amp: 0.16, decay: 0.85, detune: 0 }
+                ];
+
+                voices.forEach(v => {
+                    const f = v.freq * pitchMult;
+                    const voiceDecay = baseDecay * v.decay;
+
+                    const carrier = this.ctx.createOscillator();
+                    carrier.type = 'sine';
+                    carrier.frequency.value = f;
+                    carrier.detune.value = v.detune;
+
+                    const modulator = this.ctx.createOscillator();
+                    modulator.type = 'sine';
+                    modulator.frequency.value = f * v.ratio;
+
+                    const modGain = this.ctx.createGain();
+                    const modDepth = f * v.modIdx * (0.5 + brightnessNorm * 1.2);
+                    modGain.gain.setValueAtTime(modDepth, now);
+                    modGain.gain.exponentialRampToValueAtTime(0.01, now + voiceDecay * 0.3);
+
+                    const voiceGain = this.ctx.createGain();
+                    voiceGain.gain.setValueAtTime(0, now);
+                    voiceGain.gain.linearRampToValueAtTime(v.amp, now + 0.003);
+                    voiceGain.gain.exponentialRampToValueAtTime(0.0001, now + voiceDecay);
+
+                    const lowpass = this.ctx.createBiquadFilter();
+                    lowpass.type = 'lowpass';
+                    lowpass.frequency.value = 2000 + brightnessNorm * 14000;
+                    lowpass.Q.value = 0.7;
+
+                    modulator.connect(modGain);
+                    modGain.connect(carrier.frequency);
+                    carrier.connect(voiceGain);
+                    voiceGain.connect(lowpass);
+                    lowpass.connect(this.dryGain);
+                    lowpass.connect(this.convolver);
+
+                    carrier.start(now);
+                    modulator.start(now);
+                    const stopTime = now + voiceDecay + 0.1;
+                    carrier.stop(stopTime);
+                    modulator.stop(stopTime);
+
+                    this.activeVoices.push({ carrier, modulator, stopTime });
+                });
+
+                setTimeout(() => {
+                    this.activeVoices = this.activeVoices.filter(v => v.stopTime > this.ctx.currentTime);
+                }, baseDecay * 1000 + 200);
+
+                return baseDecay;
+            }
+
+            setParam(name, value) {
+                this.params[name] = value;
+                if (!this.ctx) return;
+                if (name === 'volume') {
+                    this.masterGain.gain.setTargetAtTime(value / 100, this.ctx.currentTime, 0.02);
+                } else if (name === 'reverb') {
+                    this.updateReverb();
+                }
+            }
+
+            updateReverb() {
+                if (!this.ctx) return;
+                const wet = this.params.reverb / 100;
+                this.dryGain.gain.setTargetAtTime(1 - wet * 0.5, this.ctx.currentTime, 0.02);
+                this.wetGain.gain.setTargetAtTime(wet, this.ctx.currentTime, 0.02);
+            }
+
+            getWaveform() {
+                if (!this.analyser) return null;
+                this.analyser.getByteTimeDomainData(this.dataArray);
+                return this.dataArray;
+            }
+
+            getSampleRate() {
+                return this.ctx ? this.ctx.sampleRate : 44100;
+            }
+        }
+
+        // KNOB CONTROL — vertical drag interaction
+        class Knob {
+            constructor(element, onChange) {
+                this.el = element;
+                this.indicator = element.querySelector('.knob-indicator');
+                this.progress = element.querySelector('.knob-progress');
+                this.min = parseFloat(element.dataset.min);
+                this.max = parseFloat(element.dataset.max);
+                this.default = parseFloat(element.dataset.default);
+                this.param = element.dataset.param;
+                this.value = this.default;
+                this.onChange = onChange;
+                this.isDragging = false;
+                this.startY = 0;
+                this.startValue = 0;
+                this.lastTap = 0;
+
+                this.bind();
+                this.update(this.value, false);
+            }
+
+            bind() {
+                const handleStart = (e) => {
+                    e.preventDefault();
+                    this.isDragging = true;
+                    this.dragMoved = false;
+                    this.startY = e.clientY;
+                    this.startValue = this.value;
+                    try { this.el.setPointerCapture(e.pointerId); } catch(_) {}
+                    hapticTap();
+                };
+
+                const handleMove = (e) => {
+                    if (!this.isDragging) return;
+                    e.preventDefault();
+                    const deltaY = this.startY - e.clientY;
+                    if (Math.abs(deltaY) > 3) this.dragMoved = true;
+                    const range = this.max - this.min;
+                    const newValue = this.startValue + (deltaY / 180) * range;
+                    this.setValue(newValue);
+                };
+
+                const handleEnd = (e) => {
+                    if (!this.isDragging) return;
+                    this.isDragging = false;
+                    try { this.el.releasePointerCapture(e.pointerId); } catch(_) {}
+                    // Detect double-tap (only if not dragged)
+                    if (!this.dragMoved) {
+                        const now = Date.now();
+                        if (now - this.lastTap < 320) {
+                            this.reset();
+                            this.lastTap = 0;
+                        } else {
+                            this.lastTap = now;
+                        }
+                    }
+                };
+
+                this.el.addEventListener('pointerdown', handleStart);
+                this.el.addEventListener('pointermove', handleMove);
+                this.el.addEventListener('pointerup', handleEnd);
+                this.el.addEventListener('pointercancel', handleEnd);
+            }
+
+            setValue(v) {
+                v = Math.max(this.min, Math.min(this.max, v));
+                this.value = v;
+                this.update(v, true);
+            }
+
+            reset() {
+                this.setValue(this.default);
+                hapticTap();
+            }
+
+            update(value, triggerChange) {
+                const norm = (value - this.min) / (this.max - this.min);
+                const rotation = -135 + norm * 270;
+                this.indicator.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
+
+                if (this.progress) {
+                    const total = 198;
+                    const offset = total - (norm * total);
+                    this.progress.style.strokeDashoffset = offset + 66;
+                }
+
+                if (triggerChange && this.onChange) {
+                    this.onChange(this.param, value);
+                }
+            }
+        }
+
+        // HAPTICS
+        function hapticTap() {
+            if ('vibrate' in navigator) navigator.vibrate(5);
+        }
+
+        function hapticPlay() {
+            if ('vibrate' in navigator) navigator.vibrate([8, 30, 3]);
+        }
+
+        // APP
+        const synth = new BellchimeSynth();
+        const knobs = {};
+
+        const formatters = {
+            stretch: (v) => v.toFixed(2),
+            pitch: (v) => (v > 0 ? '+' : '') + Math.round(v),
+            brightness: (v) => Math.round(v),
+            reverb: (v) => Math.round(v),
+            volume: (v) => Math.round(v)
+        };
+
+        function onKnobChange(param, value) {
+            synth.setParam(param, value);
+            const el = document.getElementById(param + 'Value');
+            if (el) el.textContent = formatters[param](value);
+        }
+
+        function resetAllKnobs() {
+            Object.values(knobs).forEach(k => k.reset());
+        }
+
+        async function triggerBell() {
+            await synth.init();
+
+            const bell = document.getElementById('bell');
+            bell.classList.remove('playing');
+            void bell.offsetWidth;
+            bell.classList.add('playing');
+
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            statusDot.classList.add('active');
+            statusText.textContent = 'Ringing';
+
+            hapticPlay();
+            const duration = await synth.play();
+
+            setTimeout(() => {
+                bell.classList.remove('playing');
+                statusDot.classList.remove('active');
+                statusText.textContent = 'Ready';
+            }, duration * 1000);
+        }
+
+        // WAVEFORM
+        function drawWaveform() {
+            const canvas = document.getElementById('waveformCanvas');
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+
+            if (canvas.width !== rect.width * dpr || canvas.height !== rect.height * dpr) {
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+
+            const w = rect.width;
+            const h = rect.height;
+            ctx.clearRect(0, 0, w, h);
+
+            const data = synth.getWaveform();
+            if (!data) {
+                ctx.strokeStyle = 'rgba(201, 154, 84, 0.2)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(0, h / 2);
+                ctx.lineTo(w, h / 2);
+                ctx.stroke();
+                requestAnimationFrame(drawWaveform);
+                return;
+            }
+
+            const grad = ctx.createLinearGradient(0, 0, w, 0);
+            grad.addColorStop(0, 'rgba(201, 154, 84, 0.3)');
+            grad.addColorStop(0.5, 'rgba(244, 217, 168, 0.9)');
+            grad.addColorStop(1, 'rgba(201, 154, 84, 0.3)');
+
+            ctx.strokeStyle = grad;
+            ctx.lineWidth = 1.5;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+
+            const step = data.length / w;
+            for (let i = 0; i < w; i++) {
+                const v = data[Math.floor(i * step)] / 128 - 1;
+                const y = h / 2 + v * (h / 2) * 0.85;
+                if (i === 0) ctx.moveTo(i, y);
+                else ctx.lineTo(i, y);
+            }
+            ctx.stroke();
+
+            requestAnimationFrame(drawWaveform);
+        }
+
+        // INIT
+        function initKnobs() {
+            document.querySelectorAll('.knob').forEach(el => {
+                const knob = new Knob(el, onKnobChange);
+                knobs[el.dataset.param] = knob;
+            });
+        }
+
+        function initBell() {
+            const bell = document.getElementById('bell');
+            bell.addEventListener('click', triggerBell);
+        }
+
+        function updateSampleRate() {
+            const el = document.getElementById('sampleRateLabel');
+            el.textContent = (synth.getSampleRate() / 1000).toFixed(1) + ' kHz';
+        }
+
+        function checkInstallHint() {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            const isStandalone = window.navigator.standalone === true ||
+                window.matchMedia('(display-mode: standalone)').matches;
+            let dismissed = false;
+            try { dismissed = localStorage.getItem('bellchime-install-dismissed'); } catch(_) {}
+
+            if (isIOS && !isStandalone && !dismissed) {
+                setTimeout(() => {
+                    document.getElementById('installHint').classList.remove('hidden');
+                }, 2500);
+            }
+        }
+
+        function dismissInstallHint() {
+            document.getElementById('installHint').classList.add('hidden');
+            try { localStorage.setItem('bellchime-install-dismissed', '1'); } catch(_) {}
+        }
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js').catch(() => {});
+            });
+        }
+
+        // Prevent zoom gestures on iOS
+        document.addEventListener('gesturestart', e => e.preventDefault());
+        document.addEventListener('touchmove', e => {
+            if (e.touches.length > 1) e.preventDefault();
+        }, { passive: false });
+        document.addEventListener('dblclick', e => e.preventDefault());
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initKnobs();
+            initBell();
+            drawWaveform();
+            checkInstallHint();
+            document.addEventListener('pointerdown', () => {
+                setTimeout(updateSampleRate, 100);
+            }, { once: true });
+        });
+    </script>
+</body>
+</html>
